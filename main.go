@@ -18,14 +18,17 @@ import (
 )
 
 var (
-	gatewayIP = flag.String("gateway-ip", "", "adres van de gateway")
-	username  = flag.String("username", "", "gebruikersnaam / email voor enphase/enlighten")
-	password  = flag.String("password", "", "wachtwoord voor enphase/enlighten")
-	serial    = flag.String("serial", "", "serial enphase gateway")
+	gatewayIP = flag.String("gateway-ip", os.Getenv("ENPHASE_GATEWAY_EXPORTER_GATEWAY_IP"), "adres van de gateway")
+	username  = flag.String("username", os.Getenv("ENPHASE_GATEWAY_EXPORTER_USERNAME"), "gebruikersnaam / email voor enphase/enlighten")
+	password  = flag.String("password", os.Getenv("ENPHASE_GATEWAY_EXPORTER_PASSWORD"), "wachtwoord voor enphase/enlighten")
+	serial    = flag.String("serial", os.Getenv("ENPHASE_GATEWAY_EXPORTER_SERIAL"), "serial enphase gateway")
 
 	scrapeInterval = flag.Duration("scrape-interval", 30*time.Second, "interval voor metrics halen")
 	scrapeTimeout  = flag.Duration("scrape-timeout", 20*time.Second, "timeout voor metrics halen")
 	promAddr       = flag.String("prometheus-addr", ":9365", "listen adres voor prometheus metrics")
+
+	rrdtoolDaemon = flag.String("rrdtool-daemon", "", "adres voor daemon van rrdtool")
+	rrdtoolPrefix = flag.String("rrdtool-prefix", "", "prefix voor rrdtool")
 )
 
 func main() {
@@ -126,6 +129,15 @@ func main() {
 			opgewekt7d.Set(production.Wh7d)
 			opgewektLevensduur.Set(production.WhL)
 			huidigeStroom.Set(production.W)
+
+			if len(*rrdtoolDaemon) > 0 {
+				err := rrdupdate(*rrdtoolDaemon, *rrdtoolPrefix, production.W)
+				if err == nil {
+					log.Println("rrdtool geupdate")
+				} else {
+					log.Printf("kon rrdtool niet updaten: %s", err)
+				}
+			}
 		}
 	}
 
